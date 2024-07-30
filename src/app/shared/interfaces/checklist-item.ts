@@ -16,3 +16,5 @@ export type EditChecklistItem = {
   data: AddChecklistItem['item'];
 };
 export type RemoveChecklistItem = ChecklistItem['id'];
+
+export type ToggleChecklistItem = ChecklistItem['id'];

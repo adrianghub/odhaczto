@@ -24,9 +24,13 @@ import { ChecklistItemListComponent } from './ui/checklist-item-list/checklist-i
     <app-checklist-header
       [checklist]="checklist"
       (addItem)="checklistItemBeingEdited.set({})"
+      (resetChecklist)="checklistItemService.reset$.next($event)"
     />
 
-    <app-checklist-item-list [checklistItems]="items()" />
+    <app-checklist-item-list
+      [checklistItems]="checklistItems()"
+      (toggle)="checklistItemService.toggle$.next($event)"
+    />
     }
 
     <app-modal [isOpen]="!!checklistItemBeingEdited()">
@@ -67,7 +71,7 @@ export default class ChecklistComponent {
     name: [''],
   });
 
-  items = computed(() =>
+  checklistItems = computed(() =>
     this.checklistItemService
       .checklistItems()
       .filter((item) => item.checklistId === this.params()?.get('id'))
