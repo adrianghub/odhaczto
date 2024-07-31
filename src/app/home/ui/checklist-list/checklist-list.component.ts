@@ -1,6 +1,9 @@
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { Checklist } from '../../../shared/interfaces/checklist';
+import type {
+  Checklist,
+  RemoveChecklist,
+} from '../../../shared/interfaces/checklist';
 
 @Component({
   selector: 'app-checklist-list',
@@ -13,6 +16,10 @@ import type { Checklist } from '../../../shared/interfaces/checklist';
         <a [routerLink]="'/checklists/' + checklist.id">
           {{ checklist.name }}
         </a>
+        <div>
+          <button (click)="edit.emit(checklist)">Edit</button>
+          <button (click)="delete.emit(checklist.id)">Delete</button>
+        </div>
       </li>
       } @empty {
       <p>No checklists found.</p>
@@ -23,4 +30,7 @@ import type { Checklist } from '../../../shared/interfaces/checklist';
 })
 export class ChecklistListComponent {
   checklists = input.required<Checklist[]>();
+
+  edit = output<Checklist>();
+  delete = output<RemoveChecklist>();
 }

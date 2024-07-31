@@ -1,32 +1,95 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
-import type { AddChecklist, Checklist } from '../interfaces/checklist';
+import { ChecklistItemService } from '../../checklist/data-access/checklist-item.service';
+import type {
+  AddChecklist,
+  Checklist,
+  EditChecklist,
+} from '../interfaces/checklist';
+import { StorageService } from './storage.service';
 
 export interface ChecklistsState {
   checklists: Checklist[];
+  loaded: boolean;
+  error: string | null;
 }
 
 @Injectable({
   providedIn: 'root',
 })
 export class ChecklistService {
+  storageService = inject(StorageService);
+  checklistItemService = inject(ChecklistItemService);
+
   // state
-  private state = signal<ChecklistsState>({ checklists: [] });
+  private state = signal<ChecklistsState>({
+    checklists: [],
+    loaded: false,
+    error: null,
+  });
 
   // selectors
   checklists = computed(() => this.state().checklists);
+  loaded = computed(() => this.state().loaded);
 
   // sources/actions
   add$ = new Subject<AddChecklist>();
+  edit$ = new Subject<EditChecklist>();
+  remove$ = this.checklistItemService.checklistRemoved$;
+  private checklistLoaded$ = this.storageService.loadChecklists();
 
   constructor() {
     // reducers
+    this.checklistLoaded$.pipe(takeUntilDestroyed()).subscribe({
+      next: (checklists) => {
+        this.state.update((state) => ({
+          ...state,
+          checklists,
+          loaded: true,
+          error: null,
+        }));
+      },
+      error: (error) => {
+        this.state.update((state) => ({
+          ...state,
+          loaded: false,
+          error,
+        }));
+      },
+    });
+
     this.add$.pipe(takeUntilDestroyed()).subscribe((checklist) => {
       this.state.update((state) => ({
         ...state,
         checklists: [...state.checklists, this.addIdToChecklist(checklist)],
       }));
+    });
+
+    this.edit$.pipe(takeUntilDestroyed()).subscribe((update) => {
+      this.state.update((state) => ({
+        ...state,
+        checklists: state.checklists.map((checklist) =>
+          checklist.id === update.id
+            ? { ...checklist, name: update.data.name }
+            : checklist
+        ),
+      }));
+    });
+
+    this.remove$.pipe(takeUntilDestroyed()).subscribe((id) => {
+      this.state.update((state) => ({
+        ...state,
+        checklists: state.checklists.filter((checklist) => checklist.id !== id),
+      }));
+    });
+
+    // effects
+
+    effect(() => {
+      if (this.loaded()) {
+        this.storageService.saveChecklists(this.checklists());
+      }
     });
   }
 
