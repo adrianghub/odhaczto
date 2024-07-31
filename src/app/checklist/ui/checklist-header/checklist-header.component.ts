@@ -17,7 +17,11 @@ import type {
       <button (click)="addItem.emit()">Add item</button>
     </div>
   </header>`,
-  styles: ``,
+  styles: `
+        button {
+        margin-left: 1rem;
+      }
+`,
 })
 export class ChecklistHeaderComponent {
   checklist = input.required<Checklist>();
