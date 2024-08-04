@@ -1,12 +1,12 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
-import { Subject } from 'rxjs';
+import { connect } from 'ngxtension/connect';
+import { catchError, EMPTY, map, Subject } from 'rxjs';
 import { ChecklistItemService } from '../../checklist/data-access/checklist-item.service';
 import type {
   AddChecklist,
   Checklist,
   EditChecklist,
 } from '../interfaces/checklist';
-import { reducer } from '../utils/reducer';
 import { StorageService } from './storage.service';
 
 export interface ChecklistsState {
@@ -36,54 +36,41 @@ export class ChecklistService {
   // sources/actions
   add$ = new Subject<AddChecklist>();
   edit$ = new Subject<EditChecklist>();
+  error$ = new Subject<string>();
   remove$ = this.checklistItemService.checklistRemoved$;
-  private checklistLoaded$ = this.storageService.loadChecklists();
+  private checklistLoaded$ = this.storageService.loadChecklists().pipe(
+    catchError((error) => {
+      this.error$.next(error);
+      return EMPTY;
+    })
+  );
 
   constructor() {
     // reducers
-    reducer(
-      this.checklistLoaded$,
-      (checklists) => {
-        this.state.update((state) => ({
-          ...state,
-          checklists,
-          loaded: true,
-          error: null,
-        }));
-      },
-      (error) => {
-        this.state.update((state) => ({
-          ...state,
-          loaded: false,
-          error,
-        }));
-      }
-    );
-
-    reducer(this.add$, (checklist) =>
-      this.state.update((state) => ({
+    connect(this.state)
+      .with(this.error$, (state, error) => ({
         ...state,
+        loaded: false,
+        error,
+      }))
+      .with(
+        this.checklistLoaded$.pipe(
+          map((checklists) => ({ checklists, loaded: true }))
+        )
+      )
+      .with(this.add$, (state, checklist) => ({
         checklists: [...state.checklists, this.addIdToChecklist(checklist)],
       }))
-    );
-
-    reducer(this.edit$, (update) =>
-      this.state.update((state) => ({
-        ...state,
+      .with(this.edit$, (state, update) => ({
         checklists: state.checklists.map((checklist) =>
           checklist.id === update.id
             ? { ...checklist, name: update.data.name }
             : checklist
         ),
       }))
-    );
-
-    reducer(this.remove$, (id) =>
-      this.state.update((state) => ({
-        ...state,
+      .with(this.remove$, (state, id) => ({
         checklists: state.checklists.filter((checklist) => checklist.id !== id),
-      }))
-    );
+      }));
 
     // effects
 
