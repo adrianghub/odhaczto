@@ -1,5 +1,4 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
 import { ChecklistItemService } from '../../checklist/data-access/checklist-item.service';
 import type {
@@ -7,6 +6,7 @@ import type {
   Checklist,
   EditChecklist,
 } from '../interfaces/checklist';
+import { reducer } from '../utils/reducer';
 import { StorageService } from './storage.service';
 
 export interface ChecklistsState {
@@ -41,8 +41,9 @@ export class ChecklistService {
 
   constructor() {
     // reducers
-    this.checklistLoaded$.pipe(takeUntilDestroyed()).subscribe({
-      next: (checklists) => {
+    reducer(
+      this.checklistLoaded$,
+      (checklists) => {
         this.state.update((state) => ({
           ...state,
           checklists,
@@ -50,23 +51,23 @@ export class ChecklistService {
           error: null,
         }));
       },
-      error: (error) => {
+      (error) => {
         this.state.update((state) => ({
           ...state,
           loaded: false,
           error,
         }));
-      },
-    });
+      }
+    );
 
-    this.add$.pipe(takeUntilDestroyed()).subscribe((checklist) => {
+    reducer(this.add$, (checklist) =>
       this.state.update((state) => ({
         ...state,
         checklists: [...state.checklists, this.addIdToChecklist(checklist)],
-      }));
-    });
+      }))
+    );
 
-    this.edit$.pipe(takeUntilDestroyed()).subscribe((update) => {
+    reducer(this.edit$, (update) =>
       this.state.update((state) => ({
         ...state,
         checklists: state.checklists.map((checklist) =>
@@ -74,15 +75,15 @@ export class ChecklistService {
             ? { ...checklist, name: update.data.name }
             : checklist
         ),
-      }));
-    });
+      }))
+    );
 
-    this.remove$.pipe(takeUntilDestroyed()).subscribe((id) => {
+    reducer(this.remove$, (id) =>
       this.state.update((state) => ({
         ...state,
         checklists: state.checklists.filter((checklist) => checklist.id !== id),
-      }));
-    });
+      }))
+    );
 
     // effects
 
